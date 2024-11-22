@@ -25,6 +25,7 @@ def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False, tof
     )
     lg.setLevel(level)
     if tofile:
+        os.makedirs(root, exist_ok=True)
         log_file = os.path.join(root, phase + '_{}.log'.format(get_timestamp()))
         fh = logging.FileHandler(log_file, mode='w')
         fh.setFormatter(formatter)
@@ -36,7 +37,7 @@ def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False, tof
 
 
 def load(name, net: torch.nn.Module):
-    state_dicts = torch.load(name)
+    state_dicts = torch.load(name, map_location='cpu', weights_only=True)
     network_state_dict = {k: v for k, v in state_dicts['net'].items() if 'tmp_var' not in k}
     net.load_state_dict(network_state_dict)
 

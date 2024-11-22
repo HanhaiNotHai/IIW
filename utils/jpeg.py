@@ -298,7 +298,7 @@ class JpegSS(JpegBasic):
         self.subsample = subsample
 
     def round_ss(self, x):
-        cond = torch.tensor((torch.abs(x) < 0.5), dtype=torch.float).to(x.device)
+        cond = (torch.abs(x) < 0.5).to(torch.float)
         return cond * (x**3) + (1 - cond) * x
 
     def forward(self, image):

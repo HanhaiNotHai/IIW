@@ -61,38 +61,40 @@ class INN_Dataset(Dataset):
         return len(self.files)
 
 
-transform = T.Compose(
-    [
-        T.RandomHorizontalFlip(),
-        T.RandomVerticalFlip(),
-        T.Resize([c.cropsize, c.cropsize]),
-        T.ToTensor(),
-        T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
-    ]
-)
+def get_trainloader():
+    transform = T.Compose(
+        [
+            T.RandomHorizontalFlip(),
+            T.RandomVerticalFlip(),
+            T.Resize([c.cropsize, c.cropsize]),
+            T.ToTensor(),
+            T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+        ]
+    )
+    trainloader = DataLoader(
+        INN_Dataset(transforms=transform, mode="train"),
+        batch_size=c.batch_size,
+        shuffle=True,
+        pin_memory=True,
+        drop_last=True,
+    )
+    return trainloader
 
-transform_val = T.Compose(
-    [
-        T.Resize([c.cropsize_val, c.cropsize_val]),
-        T.ToTensor(),
-        T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
-    ]
-)
 
-trainloader = DataLoader(
-    INN_Dataset(transforms=transform, mode="train"),
-    batch_size=c.batch_size,
-    shuffle=True,
-    pin_memory=True,
-    num_workers=8,
-    drop_last=True,
-)
-# Test Dataset loader
-testloader = DataLoader(
-    INN_Dataset(transforms=transform_val, mode="val"),
-    batch_size=c.batchsize_val,
-    shuffle=False,
-    pin_memory=True,
-    num_workers=1,
-    drop_last=True,
-)
+def get_testloader():
+    transform_val = T.Compose(
+        [
+            T.Resize([c.cropsize_val, c.cropsize_val]),
+            T.ToTensor(),
+            T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+        ]
+    )
+    # Test Dataset loader
+    testloader = DataLoader(
+        INN_Dataset(transforms=transform_val, mode="val"),
+        batch_size=c.batchsize_val,
+        shuffle=False,
+        pin_memory=True,
+        drop_last=True,
+    )
+    return testloader
