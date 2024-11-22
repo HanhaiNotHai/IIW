@@ -12,6 +12,8 @@ from utils.utils import *
 def main():
     if torch.cuda.is_available():
         device = torch.device('cuda')
+    elif torch.mps.is_available():
+        device = torch.device('mps')
     else:
         device = torch.device('cpu')
 
@@ -58,8 +60,10 @@ def main():
             for idx, watermarked_images in enumerate(inn_loader):
                 watermarked_images: Tensor = watermarked_images.to(device)
                 embedded_messgaes: Tensor = torch.load(
-                    os.path.join(args.messages_path, "message_{}.pt".format(idx + 1))
-                )
+                    os.path.join(args.messages_path, "message_{}.pt".format(idx + 1)),
+                    map_location='cpu',
+                    weights_only=True,
+                ).to(device)
 
                 all_zero = torch.zeros(embedded_messgaes.shape).to(device)
 

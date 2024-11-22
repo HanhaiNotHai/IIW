@@ -23,8 +23,8 @@ batchsize_val = 16
 cropsize_val = 128
 
 # Data Path
-TRAIN_PATH = '/root/Dataset/DIV2K/DIV2K_train_HR'
-VAL_PATH = '/root/Dataset/test'
+TRAIN_PATH = 'dataset/DIV2K/DIV2K_train_LR_x8'
+VAL_PATH = 'dataset/DIV2K/DIV2K_valid_LR_x8'
 
 format_train = 'png'
 format_val = 'png'

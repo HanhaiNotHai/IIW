@@ -1,22 +1,27 @@
 import torch.nn
 
 from models.encoder_decoder import FED
-from utils.datasets import *
+from utils.datasets import c, get_testloader, get_trainloader
 from utils.jpeg import JpegSS, JpegTest
 from utils.metric import *
 from utils.utils import *
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif torch.mps.is_available():
+    device = torch.device('mps')
+else:
+    device = torch.device('cpu')
 
 
 def stego_loss_fn(stego, cover):
-    loss_fn = torch.nn.MSELoss(reduce=True)
+    loss_fn = torch.nn.MSELoss()
     loss: Tensor = loss_fn(stego, cover)
     return loss.to(device)
 
 
 def message_loss_fn(recover_message, message):
-    loss_fn = torch.nn.MSELoss(reduce=True)
+    loss_fn = torch.nn.MSELoss()
     loss: Tensor = loss_fn(recover_message, message)
     return loss.to(device)
 
@@ -27,12 +32,14 @@ def load(model: torch.nn.Module, name):
     model.load_state_dict(network_state_dict)
 
 
+trainloader = get_trainloader()
+testloader = get_testloader()
+
 fed = FED(c.diff, c.message_length)
-fed.cuda()
-params_trainable = list(filter(lambda p: p.requires_grad, fed.parameters()))
+fed = fed.to(device)
 
 optim = torch.optim.Adam(
-    params_trainable, lr=c.lr, betas=c.betas, eps=1e-6, weight_decay=c.weight_decay
+    fed.parameters(), lr=c.lr, betas=c.betas, eps=1e-6, weight_decay=c.weight_decay
 )
 
 if c.train_continue:
@@ -62,7 +69,7 @@ for i_epoch in range(c.epochs):
 
         message = torch.Tensor(
             np.random.choice([-0.5, 0.5], (cover_img.shape[0], c.message_length))
-        ).cuda()
+        ).to(device)
         input_data = [cover_img, message]
 
         #################
@@ -76,7 +83,7 @@ for i_epoch in range(c.epochs):
         #   backward:   #
         ################
 
-        guass_noise = torch.zeros(left_noise.shape).cuda()
+        guass_noise = torch.zeros(left_noise.shape).to(device)
         output_data = [stego_noise_img, guass_noise]
         re_img, re_message = fed(output_data, rev=True)
 
@@ -147,7 +154,7 @@ for i_epoch in range(c.epochs):
             #   backward:   #
             #################
 
-            test_z_guass_noise = torch.zeros(test_left_noise.shape).cuda()
+            test_z_guass_noise = torch.zeros(test_left_noise.shape).to(device)
 
             test_output_data = [test_stego_noise_img, test_z_guass_noise]
 
