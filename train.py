@@ -28,9 +28,7 @@ fed = FED(c.diff, c.message_length)
 fed = fed.to(device)
 
 mse_loss = torch.nn.MSELoss()
-optim = torch.optim.Adam(
-    fed.parameters(), lr=c.lr, betas=c.betas, eps=1e-6, weight_decay=c.weight_decay
-)
+optim = torch.optim.Adam(fed.parameters(), lr=c.lr)
 
 if c.train_continue:
     load(fed, c.MODEL_PATH + c.suffix)
