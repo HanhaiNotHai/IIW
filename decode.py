@@ -42,7 +42,7 @@ def main():
     inn_data = Test_Dataset(args.watermarked_image, "png")
     inn_loader = DataLoader(inn_data, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
-    error_history = []
+    acc_history = []
 
     with torch.no_grad():
         if args.noise_type in ["JPEG", "HEAVY"]:
@@ -72,16 +72,14 @@ def main():
 
                 reversed_img, extracted_messages = fed([watermarked_images, all_zero], rev=True)
 
-                error_rate = decoded_message_error_rate_batch(
-                    embedded_messgaes, extracted_messages
-                )
+                acc_rate = decoded_message_acc_rate(embedded_messgaes, extracted_messages)
 
-                error_history.append(error_rate)
+                acc_history.append(acc_rate)
 
         else:
             raise ValueError("\"{}\" is not a valid noise type ".format(args.noise_type))
 
-    print('error : {:.3f}'.format(np.mean(error_history)))
+    print(f'acc: {np.mean(acc_history):.5f}%')
 
 
 if __name__ == '__main__':
