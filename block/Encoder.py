@@ -57,6 +57,7 @@ class Encoder(nn.Module):
         self.message_pre_layer = nn.Sequential(
             ConvRelu(1, channels),
             ExpandNet(channels, channels, blocks=stride_blocks),
+            # TODO: out_channels = 3
             ConvRelu(channels, 1, init_zero=True),
         )
 

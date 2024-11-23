@@ -72,22 +72,9 @@ def clamp(input: Tensor, min=None, max=None):
     return input
 
 
-def decoded_message_error_rate(message: Tensor, decoded_message: Tensor):
-    message = message.view(message.shape[0], -1).squeeze()
-    length = message.shape[0]
-    message = message.gt(0)
-    decoded_message = decoded_message.gt(0)
-    error_rate = float(sum(message != decoded_message)) / length
-    return error_rate
-
-
-def decoded_message_error_rate_batch(messages, decoded_messages):
-    error_rate = 0.0
-    batch_size = len(messages)
-    for i in range(batch_size):
-        error_rate += decoded_message_error_rate(messages[i], decoded_messages[i])
-    error_rate /= batch_size
-    return error_rate
+def decoded_message_acc_rate(messages: Tensor, decoded_messages: Tensor):
+    acc_rate = torch.sum(messages.ge(0) == decoded_messages.ge(0)) / messages.numel()
+    return acc_rate.item() * 100
 
 
 def get_timestamp():

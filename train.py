@@ -1,4 +1,5 @@
 import torch.nn
+import wandb
 
 from models.encoder_decoder import FED
 from utils.datasets import c, get_testloader, get_trainloader
@@ -14,18 +15,6 @@ else:
     device = torch.device('cpu')
 
 
-def stego_loss_fn(stego, cover):
-    loss_fn = torch.nn.MSELoss()
-    loss: Tensor = loss_fn(stego, cover)
-    return loss.to(device)
-
-
-def message_loss_fn(recover_message, message):
-    loss_fn = torch.nn.MSELoss()
-    loss: Tensor = loss_fn(recover_message, message)
-    return loss.to(device)
-
-
 def load(model: torch.nn.Module, name):
     state_dicts = torch.load(name)
     network_state_dict = {k: v for k, v in state_dicts['net'].items() if 'tmp_var' not in k}
@@ -38,6 +27,7 @@ testloader = get_testloader()
 fed = FED(c.diff, c.message_length)
 fed = fed.to(device)
 
+mse_loss = torch.nn.MSELoss()
 optim = torch.optim.Adam(
     fed.parameters(), lr=c.lr, betas=c.betas, eps=1e-6, weight_decay=c.weight_decay
 )
@@ -51,13 +41,17 @@ logger_train = logging.getLogger('train')
 noise_layer = JpegSS(50)
 test_noise_layer = JpegTest(50)
 
+if c.WANDB:
+    wandb.login()
+    wandb.init(project='IIW', dir='logging', config=c.wandb_config)
+    wandb.watch(fed, criterion='all', log_freq=10)
+
+step = 0
 for i_epoch in range(c.epochs):
 
     loss_history = []
     stego_loss_history = []
     message_loss_history = []
-    stego_psnr_history = []
-    error_history = []
 
     #################
     #     train:    #
@@ -65,6 +59,7 @@ for i_epoch in range(c.epochs):
 
     fed.train()
     for idx_batch, cover_img in enumerate(trainloader):
+        step += 1
         cover_img: Tensor = cover_img.to(device)
 
         message = torch.Tensor(
@@ -87,8 +82,8 @@ for i_epoch in range(c.epochs):
         output_data = [stego_noise_img, guass_noise]
         re_img, re_message = fed(output_data, rev=True)
 
-        stego_loss = stego_loss_fn(stego_img, cover_img)
-        message_loss = message_loss_fn(re_message, message)
+        stego_loss: Tensor = mse_loss(stego_img, cover_img)
+        message_loss: Tensor = mse_loss(re_message, message)
 
         total_loss = c.message_weight * message_loss + c.stego_weight * stego_loss
         total_loss.backward()
@@ -96,40 +91,38 @@ for i_epoch in range(c.epochs):
         optim.step()
         optim.zero_grad()
 
-        psnr_temp_stego = psnr(cover_img, stego_img, 255)
+        loss_history.append(total_loss.item())
+        stego_loss_history.append(stego_loss.item())
+        message_loss_history.append(message_loss.item())
 
-        error_rate = decoded_message_error_rate_batch(message, re_message)
+        if c.WANDB:
+            wandb.log(
+                dict(
+                    total_loss=total_loss.item(),
+                    stego_loss=stego_loss.item(),
+                    message_loss=message_loss.item(),
+                ),
+                step,
+            )
 
-        loss_history.append([total_loss.item(), 0.0])
-        stego_loss_history.append([stego_loss.item(), 0.0])
-        message_loss_history.append([message_loss.item(), 0.0])
-        stego_psnr_history.append([psnr_temp_stego, 0.0])
-        error_history.append([error_rate, 0.0])
-
-    epoch_losses = np.mean(np.array(loss_history), axis=0)
-    stego_epoch_losses = np.mean(np.array(stego_loss_history), axis=0)
-    message_epoch_losses = np.mean(np.array(message_loss_history), axis=0)
-    stego_psnr = np.mean(np.array(stego_psnr_history), axis=0)
-    error = np.mean(np.array(error_history), axis=0)
-
-    epoch_losses[1] = np.log10(optim.param_groups[0]['lr'])
+    epoch_losses = np.mean(loss_history)
+    stego_epoch_losses = np.mean(stego_loss_history)
+    message_epoch_losses = np.mean(message_loss_history)
 
     logger_train.info(f"Learning rate: {optim.param_groups[0]['lr']}")
     logger_train.info(
         f"Train epoch {i_epoch}:   "
-        f'Loss: {epoch_losses[0].item():.4f} | '
-        f'Stego_Loss: {stego_epoch_losses[0].item():.4f} | '
-        f'Message_Loss: {message_epoch_losses[0].item():.4f} | '
-        f'Stego_Psnr: {stego_psnr[0].item():.4f} |'
-        f'Error:{1 - error[0].item():.4f} |'
+        f'Loss: {epoch_losses.item():.4f} | '
+        f'Stego_Loss: {stego_epoch_losses.item():.4f} | '
+        f'Message_Loss: {message_epoch_losses.item():.4f} | '
     )
 
     #################
     #     val:      #
     #################
-    with torch.no_grad():
+    with torch.inference_mode():
         stego_psnr_history = []
-        error_history = []
+        acc_history = []
 
         fed.eval()
         for test_cover_img in testloader:
@@ -161,24 +154,30 @@ for i_epoch in range(c.epochs):
             test_re_img, test_re_message = fed(test_output_data, rev=True)
 
             psnr_temp_stego = psnr(test_cover_img, test_stego_img, 255)
-            psnr_temp_recover = psnr(test_cover_img, test_re_img, 255)
 
-            error_rate = decoded_message_error_rate_batch(test_message, test_re_message)
+            acc_rate = decoded_message_acc_rate(test_message, test_re_message)
 
             stego_psnr_history.append(psnr_temp_stego)
-            error_history.append(error_rate)
+            acc_history.append(acc_rate)
 
-        logger_train.info(
-            f"TEST:   "
-            f'PSNR_STEGO: {np.mean(stego_psnr_history):.4f} | '
-            f'Error: {1 - np.mean(error_history):.4f} | '
-        )
+        stego_psnr = np.mean(stego_psnr_history)
+        acc = np.mean(acc_history)
+        logger_train.info(f'TEST:   PSNR_STEGO: {stego_psnr:.5f}dB | ' f'Acc: {acc:.5f}% | ')
+
+        if c.WANDB:
+            wandb.log(dict(psnr=stego_psnr.item(), acc=acc.item()), step)
 
     if i_epoch > 0 and (i_epoch % c.SAVE_freq) == 0:
         torch.save(
             {'opt': optim.state_dict(), 'net': fed.state_dict()},
-            c.MODEL_PATH + 'fed_' + str(np.mean(stego_psnr_history)) + '_%.5i' % i_epoch + '.pt',
+            f'{c.MODEL_PATH}fed_{i_epoch:03}_{stego_psnr:.5f}dB_{acc:.5f}%.pt',
         )
 
 
-torch.save({'opt': optim.state_dict(), 'net': fed.state_dict()}, c.MODEL_PATH + 'fed' + '.pt')
+torch.save(
+    {'opt': optim.state_dict(), 'net': fed.state_dict()},
+    f'{c.MODEL_PATH}fed_{i_epoch:03}_{stego_psnr:.5f}dB_{acc:.5f}%.pt',
+)
+
+if c.WANDB:
+    wandb.finish()

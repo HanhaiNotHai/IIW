@@ -1,3 +1,11 @@
+import os
+from time import strftime
+
+WANDB = False
+proxy: str | None = None  # '127.0.0.1:7897'
+if proxy is not None:
+    os.environ['http_proxy'] = os.environ['https_proxy'] = proxy
+
 epochs = 500
 clamp = 2.0
 
@@ -15,11 +23,11 @@ stego_weight = 1
 message_length = 64
 
 # Train:
-batch_size = 50
+batch_size = 64
 cropsize = 128
 
 # Val:
-batchsize_val = 16
+batchsize_val = 64
 cropsize_val = 128
 
 # Data Path
@@ -30,15 +38,20 @@ format_train = 'png'
 format_val = 'png'
 
 # Saving checkpoints:
-MODEL_PATH = 'experiments/JPEG'
+MODEL_PATH = os.path.join('experiments', strftime('%m%d_%X'))
+os.makedirs(MODEL_PATH)
+MODEL_PATH = os.path.join(MODEL_PATH, 'JPEG')
 SAVE_freq = 5
 
 suffix = ''
 train_continue = False
 diff = False
 
-
-
-
-
-
+wandb_config = dict(
+    epochs=epochs,
+    lr=lr,
+    message_weight=message_weight,
+    stego_weight=stego_weight,
+    batch_size=batch_size,
+    batchsize_val=batchsize_val,
+)
