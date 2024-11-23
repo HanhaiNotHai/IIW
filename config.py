@@ -36,8 +36,6 @@ format_val = 'png'
 
 # Saving checkpoints:
 MODEL_PATH = os.path.join('experiments', strftime('%m%d_%X'))
-os.makedirs(MODEL_PATH)
-MODEL_PATH = os.path.join(MODEL_PATH, 'JPEG')
 SAVE_freq = 5
 
 suffix = ''
