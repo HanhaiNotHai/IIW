@@ -10,7 +10,7 @@ epochs = 500
 clamp = 2.0
 
 # optimizer
-lr = 1e-4
+lr = 1e-3
 
 noise_flag = True
 

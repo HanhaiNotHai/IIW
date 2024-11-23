@@ -29,6 +29,9 @@ fed = fed.to(device)
 
 mse_loss = torch.nn.MSELoss()
 optim = torch.optim.Adam(fed.parameters(), lr=c.lr)
+scheduler = torch.optim.lr_scheduler.LinearLR(
+    optim, start_factor=1, end_factor=1e-3, total_iters=c.epochs
+)
 
 if c.train_continue:
     load(fed, c.MODEL_PATH + c.suffix)
@@ -103,6 +106,8 @@ for i_epoch in range(c.epochs):
                 step,
             )
 
+    scheduler.step()
+
     epoch_losses = np.mean(loss_history)
     stego_epoch_losses = np.mean(stego_loss_history)
     message_epoch_losses = np.mean(message_loss_history)
@@ -163,7 +168,14 @@ for i_epoch in range(c.epochs):
         logger_train.info(f'TEST:   PSNR_STEGO: {stego_psnr:.5f}dB | ' f'Acc: {acc:.5f}% | ')
 
         if c.WANDB:
-            wandb.log(dict(psnr=stego_psnr.item(), acc=acc.item()), step)
+            wandb.log(
+                dict(
+                    psnr=stego_psnr.item(),
+                    acc=acc.item(),
+                    learning_rate=scheduler.get_last_lr()[0],
+                ),
+                step,
+            )
 
     if i_epoch > 0 and (i_epoch % c.SAVE_freq) == 0:
         torch.save(
