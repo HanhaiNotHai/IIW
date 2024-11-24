@@ -34,7 +34,7 @@ scheduler = torch.optim.lr_scheduler.LinearLR(
 )
 
 os.makedirs(c.MODEL_PATH)
-MODEL_PATH = os.path.join(c.MODEL_PATH, 'JPEG')
+c.MODEL_PATH = os.path.join(c.MODEL_PATH, 'JPEG')
 
 if c.train_continue:
     load(fed, c.MODEL_PATH + c.suffix)
