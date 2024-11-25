@@ -18,7 +18,7 @@ class Test_Dataset(Dataset):
     def __init__(self, path, format):
         self.transform = T.Compose(
             [
-                T.Resize(128),
+                T.Resize([128, 128]),
                 T.ToTensor(),
                 T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
             ]
