@@ -46,7 +46,8 @@ def main():
     inn_data = Test_Dataset(args.source_image, args.source_image_type)
     inn_loader = DataLoader(inn_data, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
-    psnr_history = []
+    psnr_history1 = []
+    psnr_history2 = []
 
     with torch.no_grad():
         if args.noise_type in ["JPEG", "HEAVY"]:
@@ -54,51 +55,76 @@ def main():
                 noise_layer = JpegTest(50)
             # fed_path = os.path.join("experiments", args.noise_type, "FED.pt")
             fed_path = os.path.join(
-                'experiments/1125_09:05:43/JPEGfed_220_49.11232dB_100.00000%.pt'
+                'experiments/1125_11:22:33/JPEGfed_420_36.91206dB_99.99349%.pt'
             )
             fed = FED().to(device)
             load(fed_path, fed)
             fed.eval()
-            for idx, source_images in enumerate(inn_loader):
-                source_images: Tensor = source_images.to(device)
-                source_messgaes = torch.Tensor(
-                    np.random.choice([-0.5, 0.5], (source_images.shape[0], 64))
+            for idx, img1 in enumerate(inn_loader):
+                img1: Tensor = img1.to(device)
+                source_messgaes1 = torch.Tensor(
+                    np.random.choice([-0.5, 0.5], (img1.shape[0], 64))
                 ).to(device)
-                key = (
-                    torch.randint(0, 2, source_messgaes.shape, dtype=torch.int8).to(device) * 2 - 1
+                key1 = (
+                    torch.randint(0, 2, source_messgaes1.shape, dtype=torch.int8).to(device) * 2
+                    - 1
                 )
 
-                stego_images, left_noise, _ = fed([source_images, source_messgaes, key])
+                stego_images1, *_ = fed([img1, source_messgaes1, key1])
 
                 if args.noise_type == "JPEG":
-                    final_images = noise_layer(stego_images.clone())
+                    final_images = noise_layer(stego_images1.clone())
                 else:
-                    final_images = stego_images
+                    final_images = stego_images1
 
-                psnr_value = psnr(source_images, stego_images, 255)
+                source_messgaes2 = torch.Tensor(
+                    np.random.choice([-0.5, 0.5], (stego_images1.shape[0], 64))
+                ).to(device)
+                key2 = (
+                    torch.randint(0, 2, source_messgaes2.shape, dtype=torch.int8).to(device) * 2
+                    - 1
+                )
+                stego_images2, *_ = fed([stego_images1, source_messgaes2, key2])
 
-                for i in range(source_images.shape[0]):
-                    number = 1 + i + idx * source_images.shape[0]
+                psnr_value1 = psnr(img1, stego_images1, 255)
+                psnr_value2 = psnr(stego_images1, stego_images2, 255)
+
+                for i in range(img1.shape[0]):
+                    number = 1 + i + idx * img1.shape[0]
                     torchvision.utils.save_image(
                         ((final_images[i] / 2) + 0.5),
-                        os.path.join(args.watermarked_image, "{}.png".format(number)),
+                        os.path.join(args.watermarked_image, "{}_1.png".format(number)),
+                    )
+                    torchvision.utils.save_image(
+                        ((stego_images2[i] / 2) + 0.5),
+                        os.path.join(args.watermarked_image, "{}_2.png".format(number)),
                     )
 
                 torch.save(
-                    source_messgaes,
-                    os.path.join(args.messages_path, "message_{}.pt".format(idx + 1)),
+                    source_messgaes1,
+                    os.path.join(args.messages_path, "message_{}_1.pt".format(idx + 1)),
                 )
                 torch.save(
-                    key,
-                    os.path.join(args.messages_path, "key_{}.pt".format(idx + 1)),
+                    source_messgaes2,
+                    os.path.join(args.messages_path, "message_{}_2.pt".format(idx + 1)),
+                )
+                torch.save(
+                    key1,
+                    os.path.join(args.messages_path, "key_{}_1.pt".format(idx + 1)),
+                )
+                torch.save(
+                    key2,
+                    os.path.join(args.messages_path, "key_{}_2.pt".format(idx + 1)),
                 )
 
-                psnr_history.append(psnr_value)
+                psnr_history1.append(psnr_value1)
+                psnr_history2.append(psnr_value2)
 
         else:
             raise ValueError("\"{}\" is not a valid noise type ".format(args.noise_type))
 
-    print('psnr: {:.3f}'.format(np.mean(psnr_history)))
+    print('psnr1: {:.3f}'.format(np.mean(psnr_history1)))
+    print('psnr2: {:.3f}'.format(np.mean(psnr_history2)))
 
 
 if __name__ == '__main__':

@@ -24,19 +24,23 @@ class Test_Dataset(Dataset):
             ]
         )
 
-        self.files = natsorted(sorted(glob.glob(path + "/*." + format)))
+        self.files1 = natsorted(sorted(glob.glob(path + "/*_1." + format)))
+        self.files2 = natsorted(sorted(glob.glob(path + "/*_2." + format)))
 
     def __getitem__(self, index):
         try:
-            image = Image.open(self.files[index])
-            image = to_rgb(image)
-            item = self.transform(image)
-            return item
+            image1 = Image.open(self.files1[index])
+            image1 = to_rgb(image1)
+            item1 = self.transform(image1)
+            image2 = Image.open(self.files2[index])
+            image2 = to_rgb(image2)
+            item2 = self.transform(image2)
+            return item1, item2
         except:
             return self.__getitem__(index + 1)
 
     def __len__(self):
-        return len(self.files)
+        return len(self.files1)
 
 
 class INN_Dataset(Dataset):

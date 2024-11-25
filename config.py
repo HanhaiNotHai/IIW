@@ -20,11 +20,11 @@ stego_weight = 1
 message_length = 64
 
 # Train:
-batch_size = 100
+batch_size = 40
 cropsize = 128
 
 # Val:
-batchsize_val = 100
+batchsize_val = 40
 cropsize_val = 128
 
 # Data Path
