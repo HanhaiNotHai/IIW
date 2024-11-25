@@ -23,7 +23,7 @@ def main():
     parser.add_argument(
         '--noise-type',
         '-n',
-        default='JPEG',
+        default='HEAVY',
         type=str,
         help='The noise type will be added to the watermarked images.',
     )
@@ -52,7 +52,10 @@ def main():
         if args.noise_type in ["JPEG", "HEAVY"]:
             if args.noise_type == "JPEG":
                 noise_layer = JpegTest(50)
-            fed_path = os.path.join("experiments", args.noise_type, "FED.pt")
+            # fed_path = os.path.join("experiments", args.noise_type, "FED.pt")
+            fed_path = os.path.join(
+                'experiments/1125_09:05:43/JPEGfed_220_49.11232dB_100.00000%.pt'
+            )
             fed = FED().to(device)
             load(fed_path, fed)
             fed.eval()
@@ -61,8 +64,11 @@ def main():
                 source_messgaes = torch.Tensor(
                     np.random.choice([-0.5, 0.5], (source_images.shape[0], 64))
                 ).to(device)
+                key = (
+                    torch.randint(0, 2, source_messgaes.shape, dtype=torch.int8).to(device) * 2 - 1
+                )
 
-                stego_images, left_noise = fed([source_images, source_messgaes])
+                stego_images, left_noise, _ = fed([source_images, source_messgaes, key])
 
                 if args.noise_type == "JPEG":
                     final_images = noise_layer(stego_images.clone())
@@ -81,6 +87,10 @@ def main():
                 torch.save(
                     source_messgaes,
                     os.path.join(args.messages_path, "message_{}.pt".format(idx + 1)),
+                )
+                torch.save(
+                    key,
+                    os.path.join(args.messages_path, "key_{}.pt".format(idx + 1)),
                 )
 
                 psnr_history.append(psnr_value)

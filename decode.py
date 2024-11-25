@@ -46,7 +46,10 @@ def main():
 
     with torch.no_grad():
         if args.noise_type in ["JPEG", "HEAVY"]:
-            fed_path = os.path.join("experiments", args.noise_type, "FED.pt")
+            # fed_path = os.path.join("experiments", args.noise_type, "FED.pt")
+            fed_path = os.path.join(
+                'experiments/1125_09:05:43/JPEGfed_220_49.11232dB_100.00000%.pt'
+            )
             fed = FED().to(device)
             load(fed_path, fed)
             fed.eval()
@@ -64,13 +67,20 @@ def main():
                     map_location='cpu',
                     weights_only=True,
                 ).to(device)
+                key: Tensor = torch.load(
+                    os.path.join(args.messages_path, "key_{}.pt".format(idx + 1)),
+                    map_location='cpu',
+                    weights_only=True,
+                ).to(device)
 
                 all_zero = torch.zeros(embedded_messgaes.shape).to(device)
 
                 if args.noise_type == "HEAVY":
                     watermarked_images = inl(watermarked_images.clone(), rev=True)
 
-                reversed_img, extracted_messages = fed([watermarked_images, all_zero], rev=True)
+                reversed_img, extracted_messages, _ = fed(
+                    [watermarked_images, all_zero, key], rev=True
+                )
 
                 acc_rate = decoded_message_acc_rate(embedded_messgaes, extracted_messages)
 

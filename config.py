@@ -12,7 +12,7 @@ clamp = 2.0
 # optimizer
 lr = 1e-3
 
-noise_flag = True
+noise_flag = False
 
 # input settings
 message_weight = 10

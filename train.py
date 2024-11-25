@@ -29,9 +29,7 @@ fed = fed.to(device)
 
 mse_loss = torch.nn.MSELoss()
 optim = torch.optim.Adam(fed.parameters(), lr=c.lr)
-scheduler = torch.optim.lr_scheduler.LinearLR(
-    optim, start_factor=1, end_factor=1e-3, total_iters=c.epochs
-)
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optim, gamma=0.99)
 
 os.makedirs(c.MODEL_PATH)
 c.MODEL_PATH = os.path.join(c.MODEL_PATH, 'JPEG')
@@ -69,22 +67,24 @@ for i_epoch in range(c.epochs):
         message = torch.Tensor(
             np.random.choice([-0.5, 0.5], (cover_img.shape[0], c.message_length))
         ).to(device)
-        input_data = [cover_img, message]
+        key = torch.randint(0, 2, message.shape, dtype=torch.int8).to(device) * 2 - 1
+        input_data = [cover_img, message, key]
 
         #################
         #    forward:   #
         #################
 
-        stego_img, left_noise = fed(input_data)
-        stego_noise_img = noise_layer(stego_img.clone())
+        stego_img, left_noise, _ = fed(input_data)
+        # stego_noise_img = noise_layer(stego_img.clone())
+        stego_noise_img = stego_img.clone()
 
         #################
         #   backward:   #
         ################
 
         guass_noise = torch.zeros(left_noise.shape).to(device)
-        output_data = [stego_noise_img, guass_noise]
-        re_img, re_message = fed(output_data, rev=True)
+        output_data = [stego_noise_img, guass_noise, key]
+        re_img, re_message, _ = fed(output_data, rev=True)
 
         stego_loss: Tensor = mse_loss(stego_img, cover_img)
         message_loss: Tensor = mse_loss(re_message, message)
@@ -137,15 +137,17 @@ for i_epoch in range(c.epochs):
             test_message = torch.Tensor(
                 np.random.choice([-0.5, 0.5], (test_cover_img.shape[0], c.message_length))
             ).to(device)
+            key = torch.randint(0, 2, test_message.shape, dtype=torch.int8).to(device) * 2 - 1
 
-            test_input_data = [test_cover_img, test_message]
+            test_input_data = [test_cover_img, test_message, key]
 
             #################
             #    forward:   #
             #################
 
-            test_stego_img, test_left_noise = fed(test_input_data)
+            test_stego_img, test_left_noise, _ = fed(test_input_data)
 
+            test_stego_noise_img = test_stego_img.clone()
             if c.noise_flag:
                 test_stego_noise_img = test_noise_layer(test_stego_img.clone())
 
@@ -155,9 +157,9 @@ for i_epoch in range(c.epochs):
 
             test_z_guass_noise = torch.zeros(test_left_noise.shape).to(device)
 
-            test_output_data = [test_stego_noise_img, test_z_guass_noise]
+            test_output_data = [test_stego_noise_img, test_z_guass_noise, key]
 
-            test_re_img, test_re_message = fed(test_output_data, rev=True)
+            test_re_img, test_re_message, _ = fed(test_output_data, rev=True)
 
             psnr_temp_stego = psnr(test_cover_img, test_stego_img, 255)
 
