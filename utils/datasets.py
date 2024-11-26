@@ -14,7 +14,32 @@ def to_rgb(image):
     return rgb_image
 
 
-class Test_Dataset(Dataset):
+class EncodeDataset(Dataset):
+    def __init__(self, path, format):
+        self.transform = T.Compose(
+            [
+                T.Resize([128, 128]),
+                T.ToTensor(),
+                T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+            ]
+        )
+
+        self.files = natsorted(sorted(glob.glob(path + "/*." + format)))
+
+    def __getitem__(self, index):
+        try:
+            image = Image.open(self.files[index])
+            image = to_rgb(image)
+            item = self.transform(image)
+            return item
+        except:
+            return self.__getitem__(index + 1)
+
+    def __len__(self):
+        return len(self.files)
+
+
+class DecodeDataset(Dataset):
     def __init__(self, path, format):
         self.transform = T.Compose(
             [

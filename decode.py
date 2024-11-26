@@ -4,7 +4,7 @@ import torch.nn
 from torch.utils.data import DataLoader
 
 from models.encoder_decoder import FED, INL
-from utils.datasets import Test_Dataset
+from utils.datasets import DecodeDataset
 from utils.metric import *
 from utils.utils import *
 
@@ -39,7 +39,7 @@ def main():
 
     args = parser.parse_args()
 
-    inn_data = Test_Dataset(args.watermarked_image, "png")
+    inn_data = DecodeDataset(args.watermarked_image, "png")
     inn_loader = DataLoader(inn_data, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
     acc_history1 = []

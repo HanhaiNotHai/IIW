@@ -5,7 +5,7 @@ import torchvision
 from torch.utils.data import DataLoader
 
 from models.encoder_decoder import FED, INL
-from utils.datasets import Test_Dataset
+from utils.datasets import EncodeDataset
 from utils.jpeg import JpegTest
 from utils.metric import *
 from utils.utils import *
@@ -43,7 +43,7 @@ def main():
 
     args = parser.parse_args()
 
-    inn_data = Test_Dataset(args.source_image, args.source_image_type)
+    inn_data = EncodeDataset(args.source_image, args.source_image_type)
     inn_loader = DataLoader(inn_data, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
     psnr_history1 = []
