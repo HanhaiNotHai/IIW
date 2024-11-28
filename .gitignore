@@ -4,6 +4,7 @@ dataset
 logging
 temp
 experiments
+cache
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
