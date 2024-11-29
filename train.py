@@ -55,7 +55,10 @@ if c.WANDB:
     wandb.watch(fed, criterion='all', log_freq=10)
 
 step = 0
+constrained_weight = 0
 for i_epoch in range(c.epochs):
+    if i_epoch == 100:
+        constrained_weight = c.constrained_weight
 
     loss_history = []
     stego_loss_history = []
@@ -120,7 +123,7 @@ for i_epoch in range(c.epochs):
         total_loss = (
             c.stego_weight * stego_loss
             + c.message_weight * message_loss
-            + c.constrained_weight * constrained_loss
+            + constrained_weight * constrained_loss
         )
         total_loss.backward()
 
