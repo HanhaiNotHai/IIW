@@ -24,7 +24,7 @@ def load(model: torch.nn.Module, name):
 def constrained_loss_fn(x: Tensor) -> Tensor:
     x = x * 0.5 + 0.5
     constrained_loss = torch.where(x > 1, x - 1, 0) + torch.where(x < 0, torch.abs(x), 0)
-    return torch.sum(constrained_loss) / 2
+    return torch.sum(constrained_loss) / 2 / constrained_loss.shape[0]
 
 
 trainloader = get_trainloader()
