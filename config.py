@@ -15,7 +15,7 @@ lr = 1e-3
 noise_flag = False
 
 # input settings
-stego_weight = 2
+stego_weight = 1
 message_weight = 10
 constrained_weight = 0.1
 message_length = 64
