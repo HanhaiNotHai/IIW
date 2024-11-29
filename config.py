@@ -15,8 +15,9 @@ lr = 1e-3
 noise_flag = False
 
 # input settings
+stego_weight = 2
 message_weight = 10
-stego_weight = 1
+constrained_weight = 0.1
 message_length = 64
 
 # Train:
