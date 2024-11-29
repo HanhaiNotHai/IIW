@@ -21,6 +21,12 @@ def load(model: torch.nn.Module, name):
     model.load_state_dict(network_state_dict)
 
 
+def constrained_loss_fn(x: Tensor) -> Tensor:
+    x = x * 0.5 + 0.5
+    constrained_loss = torch.where(x > 1, x - 1, 0) + torch.where(x < 0, torch.abs(x), 0)
+    return torch.sum(constrained_loss) / 2
+
+
 trainloader = get_trainloader()
 testloader = get_testloader()
 
@@ -54,6 +60,7 @@ for i_epoch in range(c.epochs):
     loss_history = []
     stego_loss_history = []
     message_loss_history = []
+    constrained_loss_history = []
 
     #################
     #     train:    #
@@ -100,14 +107,21 @@ for i_epoch in range(c.epochs):
 
         stego_loss1: Tensor = mse_loss(stego_img1, img1)
         message_loss1: Tensor = mse_loss(re_message1, message1)
+        constrained_loss1: Tensor = constrained_loss_fn(stego_img1)
 
         stego_loss2: Tensor = mse_loss(stego_img2, stego_img1)
         message_loss2_1: Tensor = mse_loss(re_message2_1, message1)
         message_loss2_2: Tensor = mse_loss(re_message2_2, message2)
+        constrained_loss2: Tensor = constrained_loss_fn(stego_img2)
 
-        message_loss = message_loss1 + message_loss2_1 + message_loss2_2
         stego_loss = stego_loss1 + stego_loss2
-        total_loss = c.message_weight * message_loss + c.stego_weight * stego_loss
+        message_loss = message_loss1 + message_loss2_1 + message_loss2_2
+        constrained_loss = constrained_loss1 + constrained_loss2
+        total_loss = (
+            c.stego_weight * stego_loss
+            + c.message_weight * message_loss
+            + c.constrained_weight * constrained_loss
+        )
         total_loss.backward()
 
         optim.step()
@@ -116,6 +130,7 @@ for i_epoch in range(c.epochs):
         loss_history.append(total_loss.item())
         stego_loss_history.append(stego_loss.item())
         message_loss_history.append(message_loss.item())
+        constrained_loss_history.append(constrained_loss.item())
 
         if c.WANDB:
             wandb.log(
@@ -126,6 +141,8 @@ for i_epoch in range(c.epochs):
                     message_loss1=message_loss1.item(),
                     message_loss2_1=message_loss2_1.item(),
                     message_loss2_2=message_loss2_2.item(),
+                    constrained_loss1=constrained_loss1.item(),
+                    constrained_loss2=constrained_loss2.item(),
                 ),
                 step,
             )
@@ -135,6 +152,7 @@ for i_epoch in range(c.epochs):
     epoch_losses = np.mean(loss_history)
     stego_epoch_losses = np.mean(stego_loss_history)
     message_epoch_losses = np.mean(message_loss_history)
+    constrained_epoch_losses = np.mean(constrained_loss_history)
 
     logger_train.info(f"Learning rate: {optim.param_groups[0]['lr']}")
     logger_train.info(
@@ -142,6 +160,7 @@ for i_epoch in range(c.epochs):
         f'Loss: {epoch_losses.item():.4f} | '
         f'Stego_Loss: {stego_epoch_losses.item():.4f} | '
         f'Message_Loss: {message_epoch_losses.item():.4f} | '
+        f'Constrained_Loss: {constrained_epoch_losses.item():.4f} | '
     )
 
     #################
