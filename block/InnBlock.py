@@ -45,13 +45,13 @@ class Noise_INN_block(nn.Module):
 
 
 class INN_block(nn.Module):
-    def __init__(self, clamp=2.0):
+    def __init__(self, latent_channels: int, clamp=2.0):
         super().__init__()
 
         self.clamp = clamp
-        self.r = Decoder()
-        self.y = Decoder()
-        self.f = Encoder()
+        self.r = Decoder(latent_channels)
+        self.y = Decoder(latent_channels)
+        self.f = Encoder(latent_channels)
 
     def e(self, s):
         return torch.exp(self.clamp * 2 * (torch.sigmoid(s) - 0.5))

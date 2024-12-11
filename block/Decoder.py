@@ -35,11 +35,11 @@ class DecodeNet(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, H=128, message_length=64, channels=32):
+    def __init__(self, latent_channels: int, H=128, message_length=64, channels=32):
         super(Decoder, self).__init__()
         stride_blocks = int(np.log2(H // int(np.sqrt(message_length))))
         self.message_layer = nn.Sequential(
-            ConvRelu(3, channels),
+            ConvRelu(latent_channels, channels),
             DecodeNet(channels, channels, blocks=stride_blocks),
             ConvRelu(channels, 1, init_zero=True),
         )

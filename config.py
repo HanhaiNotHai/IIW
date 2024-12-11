@@ -17,7 +17,6 @@ noise_flag = False
 # input settings
 stego_weight = 1
 message_weight = 10
-constrained_weight = 0.1
 message_length = 64
 
 # Train:
@@ -29,11 +28,11 @@ batchsize_val = 40
 cropsize_val = 128
 
 # Data Path
-TRAIN_PATH = 'dataset/DIV2K/DIV2K_train_LR_x8'
-VAL_PATH = 'dataset/DIV2K/DIV2K_valid_LR_x8'
+TRAIN_PATH = 'dataset/DIV2K/DIV2K_train_HR_latents'
+VAL_PATH = 'dataset/DIV2K/DIV2K_valid_HR_latents'
 
-format_train = 'png'
-format_val = 'png'
+format_train = 'pt'
+format_val = 'pt'
 
 # Saving checkpoints:
 MODEL_PATH = os.path.join('experiments', strftime('%m%d_%X'))
