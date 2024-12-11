@@ -2,8 +2,10 @@ import argparse
 
 import torch.nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from models.encoder_decoder import FED, INL
+from models.vae import VAE
 from utils.datasets import DecodeDataset
 from utils.metric import *
 from utils.utils import *
@@ -25,7 +27,7 @@ def main():
         type=str,
         help='The noise type added to the watermarked images.',
     )
-    parser.add_argument('--batch-size', '-b', default=16, type=int, help='The batch size.')
+    parser.add_argument('--batch-size', '-b', default=1, type=int, help='The batch size.')
     parser.add_argument(
         '--messages-path', '-m', default="messages", type=str, help='The embedded messages'
     )
@@ -46,13 +48,11 @@ def main():
     acc_history2_1 = []
     acc_history2_2 = []
 
-    with torch.no_grad():
+    with torch.inference_mode():
         if args.noise_type in ["JPEG", "HEAVY"]:
-            # fed_path = os.path.join("experiments", args.noise_type, "FED.pt")
-            fed_path = os.path.join(
-                'experiments/1125_11:22:33/JPEGfed_420_36.91206dB_99.99349%.pt'
-            )
-            fed = FED().to(device)
+            vae = VAE()
+            fed_path = os.path.join('experiments/1207_19:30:42/JPEGfed_400_0.99817dB_99.96094%.pt')
+            fed = FED(vae.latent_channels).to(device)
             load(fed_path, fed)
             fed.eval()
 
@@ -62,9 +62,11 @@ def main():
                 load(inl_path, inl)
                 inl.eval()
 
-            for idx, (watermarked_images1, watermarked_images2) in enumerate(inn_loader):
+            for idx, (watermarked_images1, watermarked_images2) in enumerate(tqdm(inn_loader)):
                 watermarked_images1: Tensor = watermarked_images1.to(device)
                 watermarked_images2: Tensor = watermarked_images2.to(device)
+                watermarked_x1 = vae.encode(watermarked_images1)
+                watermarked_x2 = vae.encode(watermarked_images2)
                 embedded_messgaes1: Tensor = torch.load(
                     os.path.join(args.messages_path, "message_{}_1.pt".format(idx + 1)),
                     map_location='cpu',
@@ -91,9 +93,9 @@ def main():
                 if args.noise_type == "HEAVY":
                     watermarked_images1 = inl(watermarked_images1.clone(), rev=True)
 
-                _, extracted_messages1, _ = fed([watermarked_images1, all_zero, key1], rev=True)
-                _, extracted_messages2_1, _ = fed([watermarked_images2, all_zero, key1], rev=True)
-                _, extracted_messages2_2, _ = fed([watermarked_images2, all_zero, key2], rev=True)
+                _, extracted_messages1, _ = fed([watermarked_x1, all_zero, key1], rev=True)
+                _, extracted_messages2_1, _ = fed([watermarked_x2, all_zero, key1], rev=True)
+                _, extracted_messages2_2, _ = fed([watermarked_x2, all_zero, key2], rev=True)
 
                 acc_rate1 = decoded_message_acc_rate(embedded_messgaes1, extracted_messages1)
                 acc_rate2_1 = decoded_message_acc_rate(embedded_messgaes1, extracted_messages2_1)

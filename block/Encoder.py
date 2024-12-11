@@ -49,7 +49,7 @@ class ExpandNet(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, H=128, message_length=64, channels=32):
+    def __init__(self, latent_channels: int, H=128, message_length=64, channels=32):
         super(Encoder, self).__init__()
 
         stride_blocks = int(np.log2(H // int(np.sqrt(message_length))))
@@ -57,7 +57,7 @@ class Encoder(nn.Module):
         self.message_pre_layer = nn.Sequential(
             ConvRelu(1, channels),
             ExpandNet(channels, channels, blocks=stride_blocks),
-            ConvRelu(channels, 3, init_zero=True),
+            ConvRelu(channels, latent_channels, init_zero=True),
         )
 
     def forward(self, message: Tensor):

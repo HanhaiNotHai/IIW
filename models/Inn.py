@@ -41,17 +41,17 @@ class Noise_INN(nn.Module):
 
 
 class INN(nn.Module):
-    def __init__(self, diff=False, length=64):
+    def __init__(self, latent_channels: int, diff=False, length=64):
         super(INN, self).__init__()
         self.diff = diff
-        self.inv1 = INN_block()
-        self.inv2 = INN_block()
-        self.inv3 = INN_block()
-        self.inv4 = INN_block()
-        self.inv5 = INN_block()
-        self.inv6 = INN_block()
-        self.inv7 = INN_block()
-        self.inv8 = INN_block()
+        self.inv1 = INN_block(latent_channels)
+        self.inv2 = INN_block(latent_channels)
+        self.inv3 = INN_block(latent_channels)
+        self.inv4 = INN_block(latent_channels)
+        self.inv5 = INN_block(latent_channels)
+        self.inv6 = INN_block(latent_channels)
+        self.inv7 = INN_block(latent_channels)
+        self.inv8 = INN_block(latent_channels)
         if self.diff:
             self.diff_layer_pre = nn.Linear(length, 64)
             self.leakrelu = nn.LeakyReLU(inplace=True)

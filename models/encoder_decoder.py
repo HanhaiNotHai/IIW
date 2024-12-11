@@ -26,9 +26,9 @@ class INL(nn.Module):
 
 
 class FED(nn.Module):
-    def __init__(self, diff=False, length=64):
+    def __init__(self, latent_channels: int, diff=False, length=64):
         super(FED, self).__init__()
-        self.model = INN(diff, length)
+        self.model = INN(latent_channels, diff, length)
 
     def forward(self, x, rev=False):
 

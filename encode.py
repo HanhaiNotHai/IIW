@@ -2,9 +2,14 @@ import argparse
 
 import torch.nn
 import torchvision
+from compressai.zoo import bmshj2018_factorized, cheng2020_anchor
+from diffusers import StableDiffusion3Img2ImgPipeline, StableDiffusionImg2ImgPipeline
+from diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from models.encoder_decoder import FED, INL
+from models.vae import VAE
 from utils.datasets import EncodeDataset
 from utils.jpeg import JpegTest
 from utils.metric import *
@@ -27,7 +32,7 @@ def main():
         type=str,
         help='The noise type will be added to the watermarked images.',
     )
-    parser.add_argument('--batch-size', '-b', default=16, type=int, help='The batch size.')
+    parser.add_argument('--batch-size', '-b', default=1, type=int, help='The batch size.')
     parser.add_argument(
         '--source-image', '-s', default="test_images", type=str, help='The images to watermark'
     )
@@ -49,45 +54,82 @@ def main():
     psnr_history1 = []
     psnr_history2 = []
 
-    with torch.no_grad():
+    # sd3 = StableDiffusion3Img2ImgPipeline.from_pretrained(
+    #     'stabilityai/stable-diffusion-3.5-medium', torch_dtype=torch.bfloat16
+    # )
+    # sd3.enable_model_cpu_offload()
+
+    # sd2 = StableDiffusionImg2ImgPipeline.from_pretrained(
+    #     'stabilityai/stable-diffusion-2-1', torch_dtype=torch.float16
+    # )
+    # sd2.enable_model_cpu_offload()
+
+    # vae2 = VAE()
+    # vae2.model = sd2.vae.to(torch.float32)
+
+    # vaeB = bmshj2018_factorized(quality=3, pretrained=True).eval().to(device)
+    # vaeC = cheng2020_anchor(quality=3, pretrained=True).eval().to(device)
+
+    with torch.inference_mode():
         if args.noise_type in ["JPEG", "HEAVY"]:
             if args.noise_type == "JPEG":
                 noise_layer = JpegTest(50)
-            # fed_path = os.path.join("experiments", args.noise_type, "FED.pt")
-            fed_path = os.path.join(
-                'experiments/1125_11:22:33/JPEGfed_420_36.91206dB_99.99349%.pt'
-            )
-            fed = FED().to(device)
+            vae = VAE()
+            fed_path = os.path.join('experiments/1207_19:30:42/JPEGfed_400_0.99817dB_99.96094%.pt')
+            fed = FED(vae.latent_channels).to(device)
             load(fed_path, fed)
             fed.eval()
-            for idx, img1 in enumerate(inn_loader):
+            for idx, img1 in enumerate(tqdm(inn_loader)):
                 img1: Tensor = img1.to(device)
+                x1 = vae.encode(img1)
                 source_messgaes1 = torch.Tensor(
-                    np.random.choice([-0.5, 0.5], (img1.shape[0], 64))
+                    np.random.choice([-0.5, 0.5], (x1.shape[0], 64))
                 ).to(device)
                 key1 = (
                     torch.randint(0, 2, source_messgaes1.shape, dtype=torch.int8).to(device) * 2
                     - 1
                 )
 
-                stego_images1, *_ = fed([img1, source_messgaes1, key1])
+                stego_x1, *_ = fed([x1, source_messgaes1, key1])
+                stego_images1 = vae.decode(stego_x1)
 
                 if args.noise_type == "JPEG":
                     final_images = noise_layer(stego_images1.clone())
                 else:
                     final_images = stego_images1
 
+                # img2 = stego_images1
+
+                img2 = vae(stego_images1)
+                # img2 = vae2(stego_images1)
+                # img2 = vaeB(stego_images1 * 0.5 + 0.5)['x_hat'] * 2 - 1
+                # img2 = vaeC(stego_images1 * 0.5 + 0.5)['x_hat'] * 2 - 1
+
+                # img2 = sd3(
+                #     '',
+                #     image=(stego_images1 * 0.5 + 0.5).clamp(0, 1),
+                #     strength=1,
+                #     num_inference_steps=40,
+                #     guidance_scale=4.5,
+                #     output_type='pt',
+                # ).images
+                # # img2 = sd2('', (stego_images1 * 0.5 + 0.5).clamp(0, 1)).images
+                # img2 = img2 * 2 - 1
+                # img2 = img2.to(torch.float32)
+
+                x2 = vae.encode(img2)
                 source_messgaes2 = torch.Tensor(
-                    np.random.choice([-0.5, 0.5], (stego_images1.shape[0], 64))
+                    np.random.choice([-0.5, 0.5], (x2.shape[0], 64))
                 ).to(device)
                 key2 = (
                     torch.randint(0, 2, source_messgaes2.shape, dtype=torch.int8).to(device) * 2
                     - 1
                 )
-                stego_images2, *_ = fed([stego_images1, source_messgaes2, key2])
+                stego_x2, *_ = fed([x2, source_messgaes2, key2])
+                stego_images2 = vae.decode(stego_x2)
 
                 psnr_value1 = psnr(img1, stego_images1, 255)
-                psnr_value2 = psnr(stego_images1, stego_images2, 255)
+                psnr_value2 = psnr(img2, stego_images2, 255)
 
                 for i in range(img1.shape[0]):
                     number = 1 + i + idx * img1.shape[0]
