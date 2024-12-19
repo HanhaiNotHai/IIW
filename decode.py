@@ -45,13 +45,16 @@ def main():
     inn_loader = DataLoader(inn_data, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
     acc_history1 = []
+    acc_history1_2 = []
     acc_history2_1 = []
     acc_history2_2 = []
 
     with torch.inference_mode():
         if args.noise_type in ["JPEG", "HEAVY"]:
             vae = VAE()
-            fed_path = os.path.join('experiments/1207_19:30:42/JPEGfed_400_0.99817dB_99.96094%.pt')
+            fed_path = os.path.join(
+                'experiments/1218_21:39:51/JPEGfed_415_0.92810_99.95117%_99.98372%.pt'
+            )
             fed = FED(vae.latent_channels).to(device)
             load(fed_path, fed)
             fed.eval()
@@ -62,11 +65,18 @@ def main():
                 load(inl_path, inl)
                 inl.eval()
 
-            for idx, (watermarked_images1, watermarked_images2) in enumerate(tqdm(inn_loader)):
+            for idx, (watermarked_images1, img2, watermarked_images2) in enumerate(
+                tqdm(inn_loader)
+            ):
                 watermarked_images1: Tensor = watermarked_images1.to(device)
-                watermarked_images2: Tensor = watermarked_images2.to(device)
                 watermarked_x1 = vae.encode(watermarked_images1)
+
+                img2: Tensor = img2.to(device)
+                x2 = vae.encode(img2)
+
+                watermarked_images2: Tensor = watermarked_images2.to(device)
                 watermarked_x2 = vae.encode(watermarked_images2)
+
                 embedded_messgaes1: Tensor = torch.load(
                     os.path.join(args.messages_path, "message_{}_1.pt".format(idx + 1)),
                     map_location='cpu',
@@ -77,6 +87,7 @@ def main():
                     map_location='cpu',
                     weights_only=True,
                 ).to(device)
+
                 embedded_messgaes2: Tensor = torch.load(
                     os.path.join(args.messages_path, "message_{}_2.pt".format(idx + 1)),
                     map_location='cpu',
@@ -94,14 +105,17 @@ def main():
                     watermarked_images1 = inl(watermarked_images1.clone(), rev=True)
 
                 _, extracted_messages1, _ = fed([watermarked_x1, all_zero, key1], rev=True)
+                _, extracted_messages1_2, _ = fed([x2, all_zero, key1], rev=True)
                 _, extracted_messages2_1, _ = fed([watermarked_x2, all_zero, key1], rev=True)
                 _, extracted_messages2_2, _ = fed([watermarked_x2, all_zero, key2], rev=True)
 
                 acc_rate1 = decoded_message_acc_rate(embedded_messgaes1, extracted_messages1)
+                acc_rate1_2 = decoded_message_acc_rate(embedded_messgaes1, extracted_messages1_2)
                 acc_rate2_1 = decoded_message_acc_rate(embedded_messgaes1, extracted_messages2_1)
                 acc_rate2_2 = decoded_message_acc_rate(embedded_messgaes2, extracted_messages2_2)
 
                 acc_history1.append(acc_rate1)
+                acc_history1_2.append(acc_rate1_2)
                 acc_history2_1.append(acc_rate2_1)
                 acc_history2_2.append(acc_rate2_2)
 
@@ -109,8 +123,15 @@ def main():
             raise ValueError("\"{}\" is not a valid noise type ".format(args.noise_type))
 
     print(
-        f'acc1: {np.mean(acc_history1):.5f}% | acc2_1: {np.mean(acc_history2_1):.5f}% | acc2_2: {np.mean(acc_history2_2):.5f}%'
+        f'acc1: {np.mean(acc_history1):.5f}% | acc1_2: {np.mean(acc_history1_2):.5f}% | acc2_1: {np.mean(acc_history2_1):.5f}% | acc2_2: {np.mean(acc_history2_2):.5f}%'
     )
+
+    with open('test_strengths.log', 'a') as f:
+        f.write(f'acc1: {np.mean(acc_history1):.5f}%\n')
+        f.write(f'acc1_2: {np.mean(acc_history1_2):.5f}%\n')
+        f.write(f'acc2_1: {np.mean(acc_history2_1):.5f}%\n')
+        f.write(f'acc2_2: {np.mean(acc_history2_2):.5f}%\n')
+        f.write('-' * 50 + '\n\n')
 
 
 if __name__ == '__main__':

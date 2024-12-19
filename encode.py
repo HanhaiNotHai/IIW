@@ -45,6 +45,7 @@ def main():
     parser.add_argument(
         '--watermarked-image', '-o', default="output_images", type=str, help='The output images'
     )
+    parser.add_argument('--strength', default=0.1, type=float, help='sd img2ge strength')
 
     args = parser.parse_args()
 
@@ -54,10 +55,10 @@ def main():
     psnr_history1 = []
     psnr_history2 = []
 
-    # sd3 = StableDiffusion3Img2ImgPipeline.from_pretrained(
-    #     'stabilityai/stable-diffusion-3.5-medium', torch_dtype=torch.bfloat16
-    # )
-    # sd3.enable_model_cpu_offload()
+    sd3 = StableDiffusion3Img2ImgPipeline.from_pretrained(
+        'stabilityai/stable-diffusion-3.5-medium', torch_dtype=torch.bfloat16
+    )
+    sd3.enable_model_cpu_offload()
 
     # sd2 = StableDiffusionImg2ImgPipeline.from_pretrained(
     #     'stabilityai/stable-diffusion-2-1', torch_dtype=torch.float16
@@ -75,7 +76,9 @@ def main():
             if args.noise_type == "JPEG":
                 noise_layer = JpegTest(50)
             vae = VAE()
-            fed_path = os.path.join('experiments/1207_19:30:42/JPEGfed_400_0.99817dB_99.96094%.pt')
+            fed_path = os.path.join(
+                'experiments/1218_21:39:51/JPEGfed_415_0.92810_99.95117%_99.98372%.pt'
+            )
             fed = FED(vae.latent_channels).to(device)
             load(fed_path, fed)
             fed.eval()
@@ -93,29 +96,24 @@ def main():
                 stego_x1, *_ = fed([x1, source_messgaes1, key1])
                 stego_images1 = vae.decode(stego_x1)
 
-                if args.noise_type == "JPEG":
-                    final_images = noise_layer(stego_images1.clone())
-                else:
-                    final_images = stego_images1
-
                 # img2 = stego_images1
 
-                img2 = vae(stego_images1)
+                # img2 = vae(stego_images1)
                 # img2 = vae2(stego_images1)
                 # img2 = vaeB(stego_images1 * 0.5 + 0.5)['x_hat'] * 2 - 1
                 # img2 = vaeC(stego_images1 * 0.5 + 0.5)['x_hat'] * 2 - 1
 
-                # img2 = sd3(
-                #     '',
-                #     image=(stego_images1 * 0.5 + 0.5).clamp(0, 1),
-                #     strength=1,
-                #     num_inference_steps=40,
-                #     guidance_scale=4.5,
-                #     output_type='pt',
-                # ).images
-                # # img2 = sd2('', (stego_images1 * 0.5 + 0.5).clamp(0, 1)).images
-                # img2 = img2 * 2 - 1
-                # img2 = img2.to(torch.float32)
+                img2 = sd3(
+                    '',
+                    image=(stego_images1 * 0.5 + 0.5).clamp(0, 1),
+                    strength=args.strength,
+                    num_inference_steps=40,
+                    guidance_scale=4.5,
+                    output_type='pt',
+                ).images
+                # img2 = sd2('', (stego_images1 * 0.5 + 0.5).clamp(0, 1)).images
+                img2 = img2 * 2 - 1
+                img2 = img2.to(torch.float32)
 
                 x2 = vae.encode(img2)
                 source_messgaes2 = torch.Tensor(
@@ -134,12 +132,16 @@ def main():
                 for i in range(img1.shape[0]):
                     number = 1 + i + idx * img1.shape[0]
                     torchvision.utils.save_image(
-                        ((final_images[i] / 2) + 0.5),
-                        os.path.join(args.watermarked_image, "{}_1.png".format(number)),
+                        ((stego_images1[i] / 2) + 0.5),
+                        os.path.join(args.watermarked_image, "{}_1W.png".format(number)),
+                    )
+                    torchvision.utils.save_image(
+                        ((img2[i] / 2) + 0.5),
+                        os.path.join(args.watermarked_image, "{}_2.png".format(number)),
                     )
                     torchvision.utils.save_image(
                         ((stego_images2[i] / 2) + 0.5),
-                        os.path.join(args.watermarked_image, "{}_2.png".format(number)),
+                        os.path.join(args.watermarked_image, "{}_2W.png".format(number)),
                     )
 
                 torch.save(
@@ -167,6 +169,12 @@ def main():
 
     print('psnr1: {:.3f}'.format(np.mean(psnr_history1)))
     print('psnr2: {:.3f}'.format(np.mean(psnr_history2)))
+
+    with open('test_strengths.log', 'a') as f:
+        f.write('-' * 50 + '\n')
+        f.write(f'{args.strength=}\n')
+        f.write(f'psnr1: {np.mean(psnr_history1):.3f}\n')
+        f.write(f'psnr2: {np.mean(psnr_history2):.3f}\n')
 
 
 if __name__ == '__main__':
