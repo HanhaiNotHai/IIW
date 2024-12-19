@@ -45,21 +45,24 @@ class DecodeDataset(Dataset):
             ]
         )
 
-        self.files1 = natsorted(sorted(glob.glob(path + "/*_1." + format)))
-        self.files2 = natsorted(sorted(glob.glob(path + "/*_2." + format)))
+        self.img1W = natsorted(sorted(glob.glob(path + "/*_1W." + format)))
+        self.img2 = natsorted(sorted(glob.glob(path + "/*_2." + format)))
+        self.img2W = natsorted(sorted(glob.glob(path + "/*_2W." + format)))
 
     def __getitem__(self, index):
         try:
-            image1 = decode_image(self.files1[index])
+            image1 = decode_image(self.img1W[index])
             item1 = self.transform(image1)
-            image2 = decode_image(self.files2[index])
+            image2 = decode_image(self.img2[index])
             item2 = self.transform(image2)
-            return item1, item2
+            image3 = decode_image(self.img2W[index])
+            item3 = self.transform(image3)
+            return item1, item2, item3
         except:
             return self.__getitem__(index + 1)
 
     def __len__(self):
-        return len(self.files1)
+        return len(self.img1W)
 
 
 class INN_Dataset(Dataset):
