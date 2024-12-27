@@ -6,9 +6,6 @@ proxy: str | None = None  # '127.0.0.1:7897'
 if proxy is not None:
     os.environ['http_proxy'] = os.environ['https_proxy'] = proxy
 
-max_noise_sigma = 0.7
-max_noise_strength = 0.7
-
 epochs = 500
 clamp = 2.0
 
