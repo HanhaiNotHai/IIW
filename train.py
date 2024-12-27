@@ -24,24 +24,6 @@ def load(model: torch.nn.Module, name):
     model.load_state_dict(network_state_dict)
 
 
-def noise_sigma(x: Tensor, max_sigma: float) -> Tensor:
-    noise = torch.randn_like(x)
-    sigma = max_sigma * torch.rand([x.shape[0], 1, 1, 1]).to(x.device)
-    x = sigma * noise + (1 - sigma) * x
-    return x
-
-
-def noise_strength(x: Tensor, max_strength: float) -> Tensor:
-    noise = torch.randn_like(x)
-    strength = max_strength * torch.rand([x.shape[0], 1, 1, 1]).to(x.device)
-    x = x + strength * noise
-    return x
-
-
-def noise(x: Tensor, max_sigma: float, max_strength: float) -> Tensor:
-    return noise_strength(noise_sigma(x, max_sigma), max_strength)
-
-
 trainloader = get_trainloader()
 testloader = get_testloader()
 
@@ -100,7 +82,7 @@ for i_epoch in trange(c.epochs):
 
         stego_img1, left_noise1, _ = fed(input_data1)
 
-        img2 = noise(stego_img1, c.max_noise_sigma, c.max_noise_strength)
+        img2 = stego_img1
         message2 = torch.Tensor(
             np.random.choice([-0.5, 0.5], (stego_img1.shape[0], c.message_length))
         ).to(device)
@@ -201,7 +183,7 @@ for i_epoch in trange(c.epochs):
 
             test_stego_img1, test_left_noise1, _ = fed(test_input_data1)
 
-            img2 = noise(test_stego_img1, c.max_noise_sigma, c.max_noise_strength)
+            img2 = test_stego_img1
             test_message2 = torch.Tensor(
                 np.random.choice([-0.5, 0.5], (test_stego_img1.shape[0], c.message_length))
             ).to(device)
