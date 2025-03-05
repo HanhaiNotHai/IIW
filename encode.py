@@ -45,7 +45,7 @@ def main():
     parser.add_argument(
         '--watermarked-image', '-o', default="output_images", type=str, help='The output images'
     )
-    parser.add_argument('--strength', default=0.1, type=float, help='sd img2ge strength')
+    parser.add_argument('--strength', default=0.1, type=float, help='sd img2img strength')
 
     args = parser.parse_args()
 
