@@ -24,7 +24,6 @@ batch_size = 32
 cropsize = 128
 
 # Val:
-batchsize_val = 32
 cropsize_val = 128
 
 # Data Path
@@ -48,5 +47,4 @@ wandb_config = dict(
     message_weight=message_weight,
     stego_weight=stego_weight,
     batch_size=batch_size,
-    batchsize_val=batchsize_val,
 )

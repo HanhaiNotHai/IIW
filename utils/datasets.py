@@ -98,7 +98,7 @@ def get_testloader():
     # Test Dataset loader
     testloader = DataLoader(
         INN_Dataset(mode="val"),
-        batch_size=c.batchsize_val,
+        batch_size=c.batch_size,
         shuffle=False,
         pin_memory=True,
         drop_last=True,
