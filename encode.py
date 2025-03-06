@@ -3,12 +3,13 @@ import argparse
 import torch.nn
 import torchvision
 from compressai.zoo import bmshj2018_factorized, cheng2020_anchor
-from diffusers import StableDiffusion3Img2ImgPipeline, StableDiffusionImg2ImgPipeline
+from diffusers import StableDiffusionImg2ImgPipeline
 from diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from models.encoder_decoder import FED, INL
+from models.sd3 import SD3
 from models.vae import VAE
 from utils.datasets import EncodeDataset
 from utils.jpeg import JpegTest
@@ -45,7 +46,7 @@ def main():
     parser.add_argument(
         '--watermarked-image', '-o', default="output_images", type=str, help='The output images'
     )
-    parser.add_argument('--strength', default=0.1, type=float, help='sd img2ge strength')
+    parser.add_argument('--strength', default=0.1, type=float, help='sd img2img strength')
 
     args = parser.parse_args()
 
@@ -55,10 +56,12 @@ def main():
     psnr_history1 = []
     psnr_history2 = []
 
-    sd3 = StableDiffusion3Img2ImgPipeline.from_pretrained(
+    sd3: SD3 = SD3.from_pretrained(
         'stabilityai/stable-diffusion-3.5-medium', torch_dtype=torch.bfloat16
     )
-    sd3.enable_model_cpu_offload()
+    # sd3 = sd3.to(device)
+    sd3.enable_model_cpu_offload(device=device)
+    sd3.set_progress_bar_config(leave=False)
 
     # sd2 = StableDiffusionImg2ImgPipeline.from_pretrained(
     #     'stabilityai/stable-diffusion-2-1', torch_dtype=torch.float16
