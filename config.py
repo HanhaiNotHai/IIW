@@ -20,7 +20,7 @@ message_weight = 10
 message_length = 64
 
 # Train:
-batch_size = 32
+batch_size = 16
 cropsize = 128
 
 # Val:
@@ -35,7 +35,7 @@ format_val = 'pt'
 
 # Saving checkpoints:
 MODEL_PATH = os.path.join('experiments', strftime('%m%d_%X'))
-SAVE_freq = 5
+SAVE_freq = 1
 
 suffix = ''
 train_continue = False

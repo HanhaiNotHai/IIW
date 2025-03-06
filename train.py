@@ -1,9 +1,10 @@
 import torch.nn
 import wandb
 from torch import nn
-from tqdm import trange
+from tqdm import tqdm, trange
 
 from models.encoder_decoder import FED
+from models.sd3 import SD3
 from models.vae import VAE
 from utils.datasets import c, get_testloader, get_trainloader
 from utils.jpeg import JpegSS, JpegTest
@@ -30,6 +31,13 @@ testloader = get_testloader()
 vae = VAE()
 fed = FED(vae.latent_channels, c.diff, c.message_length)
 fed = fed.to(device)
+fed.load_state_dict(
+    torch.load(
+        'experiments/0.15_99.8%/JPEGfed_465_0.99687_100.00000%.pt',
+        map_location=device,
+        weights_only=True,
+    )['net']
+)
 
 mse_loss = torch.nn.MSELoss()
 optim = torch.optim.Adam(fed.parameters(), lr=c.lr)
@@ -49,10 +57,33 @@ test_noise_layer = JpegTest(50)
 
 cosine_similarity = nn.CosineSimilarity()
 
+sd3: SD3 = SD3.from_pretrained(
+    'stabilityai/stable-diffusion-3.5-medium', torch_dtype=torch.bfloat16
+)
+# sd3 = sd3.to(device)
+sd3.enable_model_cpu_offload(device=device)
+sd3.set_progress_bar_config(leave=False)
+
+guidance_scale = 4.5
+
+with torch.inference_mode():
+    (
+        prompt_embeds,
+        negative_prompt_embeds,
+        pooled_prompt_embeds,
+        negative_pooled_prompt_embeds,
+    ) = sd3.encode_prompt(
+        prompt=[''] * c.batch_size,
+        prompt_2=None,
+        prompt_3=None,
+        device=device,
+        do_classifier_free_guidance=guidance_scale > 1,
+    )
+
 if c.WANDB:
     wandb.login()
     wandb.init(project='IIW', dir='logging', config=c.wandb_config)
-    wandb.watch(fed, criterion='all', log_freq=10)
+    wandb.watch(fed, criterion='all', log_freq=1)
 
 step = 0
 for i_epoch in trange(c.epochs):
@@ -66,7 +97,7 @@ for i_epoch in trange(c.epochs):
     #################
 
     fed.train()
-    for idx_batch, img1 in enumerate(trainloader):
+    for idx_batch, img1 in enumerate(tqdm(trainloader)):
         step += 1
         img1: Tensor = img1.to(device)
 
@@ -82,7 +113,18 @@ for i_epoch in trange(c.epochs):
 
         stego_img1, left_noise1, _ = fed(input_data1)
 
-        img2 = stego_img1
+        img2: Tensor = sd3.forward(
+            strength=0.2,
+            num_inference_steps=40,
+            guidance_scale=guidance_scale,
+            latents=stego_img1,
+            prompt_embeds=prompt_embeds,
+            negative_prompt_embeds=negative_prompt_embeds,
+            pooled_prompt_embeds=pooled_prompt_embeds,
+            negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
+        ).images
+        img2 = img2.float()
+
         message2 = torch.Tensor(
             np.random.choice([-0.5, 0.5], (stego_img1.shape[0], c.message_length))
         ).to(device)
@@ -183,7 +225,18 @@ for i_epoch in trange(c.epochs):
 
             test_stego_img1, test_left_noise1, _ = fed(test_input_data1)
 
-            img2 = test_stego_img1
+            img2: Tensor = sd3.forward(
+                strength=0.2,
+                num_inference_steps=40,
+                guidance_scale=guidance_scale,
+                latents=test_stego_img1,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                pooled_prompt_embeds=pooled_prompt_embeds,
+                negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
+            ).images
+            img2 = img2.float()
+
             test_message2 = torch.Tensor(
                 np.random.choice([-0.5, 0.5], (test_stego_img1.shape[0], c.message_length))
             ).to(device)
