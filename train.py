@@ -252,13 +252,13 @@ for i_epoch in trange(c.epochs):
     if i_epoch > 0 and (i_epoch % c.SAVE_freq) == 0:
         torch.save(
             {'opt': optim.state_dict(), 'net': fed.state_dict()},
-            f'{c.MODEL_PATH}fed_{i_epoch:03}_{stego_cos_sim:.5f}_{acc2_1:.5f}%_{acc2_2:.5f}%.pt',
+            f'{c.MODEL_PATH}fed_{i_epoch:03}_{stego_cos_sim:.5f}_{acc1_2:.5f}%_{acc2_1:.5f}%.pt',
         )
 
 
 torch.save(
     {'opt': optim.state_dict(), 'net': fed.state_dict()},
-    f'{c.MODEL_PATH}fed_{i_epoch:03}_{stego_cos_sim:.5f}_{acc2_1:.5f}%_{acc2_2:.5f}%.pt',
+    f'{c.MODEL_PATH}fed_{i_epoch:03}_{stego_cos_sim:.5f}_{acc1_2:.5f}%_{acc2_1:.5f}%.pt',
 )
 
 if c.WANDB:
