@@ -114,7 +114,7 @@ for i_epoch in trange(c.epochs):
         stego_img1, left_noise1, _ = fed(input_data1)
 
         img2: Tensor = sd3.forward(
-            strength=0.2,
+            strength=random.uniform(0, c.max_img2img_strength),
             num_inference_steps=40,
             guidance_scale=guidance_scale,
             latents=stego_img1,

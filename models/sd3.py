@@ -40,6 +40,9 @@ class SD3(StableDiffusion3Img2ImgPipeline):
         negative_pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ):
+        if strength == 0:
+            return StableDiffusion3PipelineOutput(images=latents)
+
         self._guidance_scale = guidance_scale
         self._joint_attention_kwargs = joint_attention_kwargs
         self._interrupt = False

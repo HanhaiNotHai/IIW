@@ -2,7 +2,7 @@ import os
 from time import strftime
 
 WANDB = False
-proxy: str | None = None  # '127.0.0.1:7897'
+proxy: str | None = '127.0.0.1:7897'
 if proxy is not None:
     os.environ['http_proxy'] = os.environ['https_proxy'] = proxy
 
@@ -22,6 +22,7 @@ message_length = 64
 # Train:
 batch_size = 16
 cropsize = 128
+max_img2img_strength = 0.1
 
 # Val:
 cropsize_val = 128
